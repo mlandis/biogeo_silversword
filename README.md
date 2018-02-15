@@ -1,4 +1,6 @@
-# biogeo_silverswords
+## biogeo_silverswords
+
+---
 
 This repository contains the data and scripts used to perform the biogeographic dating analysis described in
 
