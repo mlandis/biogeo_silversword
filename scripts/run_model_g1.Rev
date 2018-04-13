@@ -129,38 +129,6 @@ constraints[1] = clade( ingroup_taxa )
 for (i in 2:outgroup_taxa.size()) {
     constraints[i] = clade( constraints[i-1], outgroup_taxa[i-1] )
 }
-#constraints[2] = clade( constraints[1], outgroup_taxa[1] )
-#constraints[3] = clade( constraints[2], outgroup_taxa[2] )
-#constraints[4] = clade( constraints[3], outgroup_taxa[3] )
-#constraints[5] = clade( constraints[4], outgroup_taxa[4] )
-#
-#for (i in 1:outgroup_taxa.size()) {
-#    constraints[i+1] = clade( constraints[i], outgroup_taxa[i] )
-#}
-#outgroup_taxa1 = ["Hulsea_algida"]
-#outgroup_taxa2 = ["Hulsea_algida", "Arnica_mollis"]
-
-# setup ingroup taxa:
-if (false) {
-k = 1
-l = 1
-for (i in 1:taxa.size()) {
-    taxa_name = taxa[i].getSpeciesName()
-    if ( !outgroup_taxa1.contains(taxa_name) ) {
-        ingroup1_taxa[k] = taxa_name
-        k += 1
-    }
-    if ( !outgroup_taxa2.contains(taxa_name) ) {
-        ingroup2_taxa[l] = taxa_name
-        l += 1
-    }
-}
-ingroup1_clade = clade(ingroup1_taxa) #, age=7)
-ingroup2_clade = clade(ingroup2_taxa) #, age=4)
-# load the constraints into a vector for the BDP model
-constraints = [ingroup1_clade, ingroup2_clade]
-}
-
 
 
 ###############
@@ -255,13 +223,12 @@ moves[mvi++] = mvScale(branch_sd, weight=10, lambda=0.1)
 moves[mvi++] = mvScale(branch_sd, weight=3, lambda=1)
 
 branch_mean := ln(rate_mol) - 0.5 * branch_sd^2
-
 rate_distribution = dnLognormal(branch_mean, branch_sd)
 rate_categories := fnDiscretizeDistribution(rate_distribution, num_rate_categories)
 
 for (i in 1:n_branches) {
     branch_rates[i] ~ dnMixture(rate_categories, rate_probs)
-    branch_rates[i].setValue( rate_categories[ floor(num_rate_categories) ] )
+    branch_rates[i].setValue( rate_categories[ floor(num_rate_categories/2) ] )
     moves[mvi++] = mvMixtureAllocation(branch_rates[i], weight=1., delta=step_size)
 }
 

@@ -1,18 +1,20 @@
 # default settings for scripting
-if (!exists("rho_type"))   rho_type = v("perfect", "madia", "total")[2]
-if (!exists("bd_prior"))   bd_prior <- 10
-if (!exists("one_island")) one_island = false
+if (!exists("rho_type")) rho_type <- v("perfect","madia","total")[3]
+if (!exists("bd_prior")) bd_prior <- 10
 
-# input filename
+# filenames
 range_fn = "data/silversword.range.nex"
 mol_fn   = "data/silversword.mol.nex"
 tree_fn  = "data/silversword.init.tre"
-geo_fn   = "data/hawaii"
+out_fn   = "output/job_171108/simple_phy_ext.1"
+geo_fn   = "data/n6/hawaii.n6"
 times_fn = geo_fn + ".times.txt"
 dist_fn  = geo_fn + ".distances.txt"
 
+
+
 # output filename
-out_fn   = "output/out.model_g4"
+out_fn   = "output/out.model_g0"
 out_fn += ".bd_" + bd_prior
 if (rho_type == "perfect") {
     out_fn += ".rho_perfect"
@@ -23,6 +25,7 @@ if (rho_type == "perfect") {
 }
 
 print("Saving work using the prefix \"" + out_fn + "\"")
+
 
 # move/monitor index
 mvi = 1
@@ -56,39 +59,14 @@ time_bounds <- readDataDelimitedFile(file=times_fn, delimiter=" ")
 n_epochs <- time_bounds.size()
 n_epochs <- 5
 
-# epoch connectivity
-for (i in 1:n_epochs) {
-    epoch_fn = geo_fn + ".connectivity." + i + ".txt"
-    connectivity[i] <- readDataDelimitedFile(file=epoch_fn, delimiter=" ")
-}
-
-if (one_island) {
-    for (i in 2:n_epochs) {
-        epoch_fn = geo_fn + ".connectivity." + n_epochs + ".txt"
-        connectivity[i] <- readDataDelimitedFile(file=epoch_fn, delimiter=" ")
-    }
-}
-
-
 # area distances
 distances <- readDataDelimitedFile(file=dist_fn, delimiter=" ")
-
-distance_sum <- 0.0
-for (i in 1:n_areas) {
-    for (j in i:n_areas) {
-        if (i != j) {
-            distance_sum += distances[i][j]
-        }
-    }
-}
-num_distances = (n_areas * n_areas - n_areas) / 2
-distance_mean <- distance_sum / num_distances
 
 # tree
 tree_init = readTrees(tree_fn)[1]
 
 # taxa
-taxa = tree_init.taxa()
+taxa = dat_mol.taxa()
 n_taxa = taxa.size()
 n_branches = 2 * n_taxa - 2
 
@@ -108,10 +86,10 @@ write(state_desc_str, file=out_fn+".state_labels.txt")
 #####################
 #
 # outgroup taxa:
-outgroup_taxa = [ 
+outgroup_taxa = [
     "Kyhosia_bolanderi",
-    "Raillardella_pringlei", 
-    "Adenothamnus_validus", 
+    "Raillardella_pringlei",
+    "Adenothamnus_validus",
     "Arnica_mollis",
     "Hulsea_algida"
 ]
@@ -127,9 +105,8 @@ for (i in 1:taxa.size()) {
 }
 constraints[1] = clade( ingroup_taxa )
 for (i in 2:outgroup_taxa.size()) {
-    constraints[i] = clade( constraints[i-1], outgroup_taxa[i-1] )
+    constraints[i] = clade(constraints[i-1], outgroup_taxa[i-1])
 }
-
 
 
 ###############
@@ -155,8 +132,6 @@ if (rho_type == "perfect") {
 } else if (rho_type == "madia") {
     rho <- ( taxa.size()-4 ) / 71 # 0.6056338
 }
-
-# birth rate
 birth ~ dnExp(bd_prior)
 moves[mvi++] = mvScale(birth, weight=3)
 
@@ -164,9 +139,9 @@ moves[mvi++] = mvScale(birth, weight=3)
 death ~ dnExp(bd_prior)
 moves[mvi++] = mvScale(death, weight=3)
 
-# diversification rate and turnover proportion (monitored values)
 div := birth - death
 turnover := death / birth
+
 
 # birth-death process
 tree_dn = dnBDP(lambda=birth, mu=death, rho=rho, rootAge=root_age, taxa=taxa)
@@ -183,7 +158,7 @@ moves[mvi++] = mvNodeTimeSlideUniform(tree, weight=n_branches)
 # Calibrations #
 ################
 
-# constraint on age of Arnica+Madiinae
+# constraint on age of arnica+Madiinae
 age_arnica_madiinae := tmrca(tree, constraints[5])
 min_age_arnica_madiinae <- 4.91
 max_age_arnica_madiinae <- 16.59
@@ -200,6 +175,7 @@ width_age_prior_madiinae <- (max_age_madiinae - min_age_madiinae)/2.0
 mean_age_prior_madiinae <- min_age_madiinae + width_age_prior_madiinae
 obs_age_madiinae ~ dnUniform(age_madiinae - width_age_prior_madiinae, age_madiinae + width_age_prior_madiinae)
 obs_age_madiinae.clamp( mean_age_prior_madiinae )
+
 
 ###################
 # Molecular model #
@@ -224,13 +200,12 @@ moves[mvi++] = mvScale(branch_sd, weight=10, lambda=0.1)
 moves[mvi++] = mvScale(branch_sd, weight=3, lambda=1)
 
 branch_mean := ln(rate_mol) - 0.5 * branch_sd^2
-
 rate_distribution = dnLognormal(branch_mean, branch_sd)
 rate_categories := fnDiscretizeDistribution(rate_distribution, num_rate_categories)
 
 for (i in 1:n_branches) {
     branch_rates[i] ~ dnMixture(rate_categories, rate_probs)
-    branch_rates[i].setValue( rate_categories[ floor(num_rate_categories) ] )
+    branch_rates[i].setValue( rate_categories[ floor(num_rate_categories/2) ] )
     moves[mvi++] = mvMixtureAllocation(branch_rates[i], weight=1., delta=step_size)
 }
 
@@ -261,8 +236,6 @@ seq_mol.clamp(dat_mol)
 # Biogeography models #
 #######################
 
-
-# fix relative anagenetic rate to 1
 rate_bg <- 1.0
 
 # dispersal rate
@@ -273,59 +246,20 @@ moves[mvi++] = mvScale(dispersal_rate, weight=4)
 extirpation_rate ~ dnExp(5)
 moves[mvi++] = mvScale(extirpation_rate, weight=4)
 
-# geographic distance scaler
-distance_scale ~ dnExp(1)
-distance_scale.setValue(0.01)
-moves[mvi++] = mvScale(distance_scale, weight=3)
-
-# then, the dispersal rate matrix
-for (i in 1:n_epochs) {
+# the relative dispersal and extirpation rate matrices
+for (i in 1:n_areas) {
     for (j in 1:n_areas) {
-        for (k in 1:n_areas) {
-            dr[i][j][k] <- 0.0
-            if (connectivity[i][j][k] > 0) {
-                dr[i][j][k] := dispersal_rate * (distances[j][k] / distance_mean)^-distance_scale
-            }
-        }
+        er[i][j] <- 0.0
+        dr[i][j] := dispersal_rate
     }
-}
-
-# the extirpation rate matrix
-for (i in 1:n_epochs) {
-    for (j in 1:n_areas) {
-        for (k in 1:n_areas) {
-            er[i][j][k] <- 0.0
-        }
-        if (connectivity[i][j][j] > 0) {
-            er[i][j][j] := extirpation_rate
-        }
-    }
+    er[i][i] := extirpation_rate
 }
 
 # build DEC rate matrices
-for (i in 1:n_epochs) {
-    Q_DEC[i] := fnDECRateMatrix(dispersalRates=dr[i],
-                                extirpationRates=er[i],
-                                maxRangeSize=max_areas,
-                                nullRange="CondSurv")
-}
-
-# build the epoch times
-for (i in 1:n_epochs) {
-    time_max[i] <- time_bounds[i][1]
-    time_min[i] <- time_bounds[i][2]
-
-    if (i == n_epochs) {
-        epoch_times[i] <- 0.0
-    } else {
-        epoch_times[i] ~ dnUniform(time_min[i], time_max[i])
-        moves[mvi++] = mvSlide(epoch_times[i], delta=(time_bounds[i][1]-time_bounds[i][2])/2)
-    }
-}
-
-# combine the epoch rate matrices and times
-Q_DEC_epoch := fnEpoch(Q=Q_DEC, times=abs(epoch_times), rates=rep(1, n_epochs))
-
+Q_DEC := fnDECRateMatrix(dispersalRates=dr,
+                         extirpationRates=er,
+                         maxRangeSize=max_areas)
+    
 # build cladogenetic transition probabilities
 clado_event_types <- [ "s", "a" ]
 p_sympatry ~ dnUniform(0,1)
@@ -342,17 +276,33 @@ rf_DEC_raw            <- rep(0, n_states)
 rf_DEC_raw[n_areas+1] <- 1  # Mainland (Z) is the only possible starting state
 rf_DEC                <- simplex(rf_DEC_raw)
 
+
 # the phylogenetic CTMC with cladogenetic events
 m_bg ~ dnPhyloCTMCClado(tree=tree,
-                           Q=Q_DEC_epoch,
+                           Q=Q_DEC,
                            cladoProbs=P_DEC,
                            branchRates=rate_bg,
                            rootFrequencies=rf_DEC,
                            type="NaturalNumbers",
                            nSites=1)
 
-# attach the range data
+# attach the range data    
 m_bg.clamp(dat_range_n)
+
+# build the epoch times
+# NOTE: we do not use an epoch model, but we're still interested in when the islands originated
+for (i in 1:n_epochs) {
+    time_max[i] <- time_bounds[i][1]
+    time_min[i] <- time_bounds[i][2]
+
+    if (i == n_epochs) {
+        epoch_times[i] <- 0.0
+    } else {
+        epoch_times[i] ~ dnUniform(time_min[i], time_max[i])
+        moves[mvi++] = mvSlide(epoch_times[i], delta=abs(time_bounds[i][1]-time_bounds[i][2])/2)
+    }
+}
+
 
 
 ############
@@ -367,42 +317,35 @@ ingroup_clade <- clade("Wilkesia_hobdyi",
 
 ingroup_age := tmrca(tree, ingroup_clade)
 for (i in 1:n_epochs) {
-    ingroup_older_island[i] := ifelse(ingroup_age > epoch_times[i], 1, 0)
+    ingroup_older_island[i] := ifelse( ingroup_age > epoch_times[i], 1, 0 )
 }
 
-monitors[mni++] = mnScreen(printgen=1, dispersal_rate, distance_scale, ingroup_age)
+
+monitors[mni++] = mnScreen(printgen=1, ingroup_age)
 monitors[mni++] = mnModel(file=out_fn+".model.log", printgen=sample_freq)
 monitors[mni++] = mnFile(tree, filename=out_fn+".tre", printgen=sample_freq)
-if (under_prior == false) {
-    monitors[mni++] = mnStochasticCharacterMap(ctmc=m_bg, filename=out_fn+".stoch.log", printgen=sample_freq)
-    monitors[mni++] = mnJointConditionalAncestralState(tree=tree,
-                                                           ctmc=m_bg,
-                                                           type="NaturalNumbers",
-                                                           withTips=true,
-                                                           withStartStates=true,
-                                                           filename=out_fn+".states.log",
-                                                           printgen=sample_freq)
-}
+monitors[mni++] = mnStochasticCharacterMap(ctmc=m_bg, filename=out_fn+".stoch.log",printgen=sample_freq)
+monitors[mni++] = mnJointConditionalAncestralState(tree=tree,
+                                                       ctmc=m_bg,
+                                                       type="NaturalNumbers",
+                                                       withTips=true,
+                                                       withStartStates=true,
+                                                       filename=out_fn+".states.log",
+                                                       printgen=sample_freq)
 
 ############
 # Analysis #
 ############
 
 # build the model analysis object from the model graph
-mymodel = model(m_bg, ingroup_older_island)
+mymodel = model(m_bg, ingroup_older_island, epoch_times)
 
 # create the MCMC analysis object
 mymcmc = mcmc(mymodel, monitors, moves)
 
-
 # run the MCMC analysis
 mymcmc.run(n_gen, underPrior=under_prior)
-
-#################
-# Post-Analysis #
-#################
 
 
 # exit
 quit()
-
