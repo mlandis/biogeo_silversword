@@ -1,7 +1,6 @@
 # default settings for scripting
 if (!exists("rho_type")) rho_type <- v("perfect","madia","total")[2]
 if (!exists("bd_prior")) bd_prior <- 10
-if (!exists("clado_event_types")) clado_event_types <- [ "s", "a" ]
 
 # filenames
 range_fn = "data/silversword.range.nex"
@@ -260,6 +259,7 @@ Q_DEC := fnDECRateMatrix(dispersalRates=dr,
                          maxRangeSize=max_areas)
     
 # build cladogenetic transition probabilities
+clado_event_types <- [ "s", "a" ]
 n_clado_events <- clado_event_types.size()
 clado_event_probs ~ dnDirichlet( rep(1, n_clado_events) )
 moves[mvi++] = mvSimplexElementScale(clado_event_probs, alpha=10, weight=3)
