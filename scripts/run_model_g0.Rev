@@ -1,19 +1,17 @@
 # default settings for scripting
-if (!exists("rho_type"))   rho_type = v("perfect", "madia", "total")[2]
-if (!exists("bd_prior"))   bd_prior <- 10
-if (!exists("one_island")) one_island = true
+if (!exists("rho_type")) rho_type <- v("perfect","madia","total")[2]
+if (!exists("bd_prior")) bd_prior <- 10
 
 # filenames
-range_fn = "data/silversword.n6.range.nex"
-mol_fn   = "data/silversword_extended.mol.nex"
-tree_fn   = "data/silversword_extended.tre"
-out_fn   = "output/simple_phy_ext.1"
-geo_fn   = "data/hawaii.n6"
+range_fn = "data/silversword.range.nex"
+mol_fn   = "data/silversword.mol.nex"
+tree_fn  = "data/silversword.init.tre"
+geo_fn   = "data/hawaii"
 times_fn = geo_fn + ".times.txt"
 dist_fn  = geo_fn + ".distances.txt"
 
 # output filename
-out_fn   = "output/out.model_g1"
+out_fn   = "output/out.model_g0.1"
 out_fn += ".bd_" + bd_prior
 if (rho_type == "perfect") {
     out_fn += ".rho_perfect"
@@ -25,13 +23,21 @@ if (rho_type == "perfect") {
 
 print("Saving work using the prefix \"" + out_fn + "\"")
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 # move/monitor index
 mvi = 1
 mni = 1
 n_gen = 1e5
 sample_freq = 50
 under_prior = false
+<<<<<<< HEAD
 if (under_prior) out_fn = out_fn + ".under_prior"
+=======
+
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 
 ########
 # data #
@@ -103,9 +109,16 @@ for (i in 1:taxa.size()) {
 }
 constraints[1] = clade( ingroup_taxa )
 for (i in 2:outgroup_taxa.size()) {
+<<<<<<< HEAD
     constraints[i] = clade( constraints[i-1], outgroup_taxa[i-1] )
 }
 
+=======
+    constraints[i] = clade(constraints[i-1], outgroup_taxa[i-1])
+}
+
+
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 ###############
 # Tree models #
 ###############
@@ -129,8 +142,11 @@ if (rho_type == "perfect") {
 } else if (rho_type == "madia") {
     rho <- ( taxa.size()-4 ) / 71 # 0.6056338
 }
+<<<<<<< HEAD
 
 # birth rate
+=======
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 birth ~ dnExp(bd_prior)
 moves[mvi++] = mvScale(birth, weight=3)
 
@@ -157,7 +173,11 @@ moves[mvi++] = mvNodeTimeSlideUniform(tree, weight=n_branches)
 # Calibrations #
 ################
 
+<<<<<<< HEAD
 # constraint on age of Arnica+Madiinae
+=======
+# constraint on age of arnica+Madiinae
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 age_arnica_madiinae := tmrca(tree, constraints[5])
 min_age_arnica_madiinae <- 4.91
 max_age_arnica_madiinae <- 16.59
@@ -237,6 +257,7 @@ seq_mol.clamp(dat_mol)
 
 rate_bg <- 1.0
 
+<<<<<<< HEAD
 dispersal_rate ~ dnExp(5)
 moves[mvi++] = mvScale(dispersal_rate, weight=4)
 
@@ -244,6 +265,16 @@ extirpation_rate ~ dnExp(5)
 moves[mvi++] = mvScale(extirpation_rate, weight=4)
 
 
+=======
+# dispersal rate
+dispersal_rate ~ dnExp(5)
+moves[mvi++] = mvScale(dispersal_rate, weight=4)
+
+# extirpation rate
+extirpation_rate ~ dnExp(5)
+moves[mvi++] = mvScale(extirpation_rate, weight=4)
+
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 # the relative dispersal and extirpation rate matrices
 for (i in 1:n_areas) {
     for (j in 1:n_areas) {
@@ -260,7 +291,13 @@ Q_DEC := fnDECRateMatrix(dispersalRates=dr,
     
 # build cladogenetic transition probabilities
 clado_event_types <- [ "s", "a" ]
+<<<<<<< HEAD
 clado_event_probs <- simplex(1,1)
+=======
+n_clado_events <- clado_event_types.size()
+clado_event_probs ~ dnDirichlet( rep(1, n_clado_events) )
+moves[mvi++] = mvSimplexElementScale(clado_event_probs, alpha=10, weight=3)
+>>>>>>> 74a729daed1777ab8162c748adda9dff0c885ac4
 P_DEC := fnDECCladoProbs(eventProbs=clado_event_probs,
                          eventTypes=clado_event_types,
                          numCharacters=n_areas,

@@ -12,7 +12,7 @@ times_fn = geo_fn + ".times.txt"
 dist_fn  = geo_fn + ".distances.txt"
 
 # output filename
-out_fn   = "output/out.model_g1"
+out_fn   = "output/out.model_g1.1"
 out_fn += ".bd_" + bd_prior
 if (rho_type == "perfect") {
     out_fn += ".rho_perfect"
@@ -21,6 +21,9 @@ if (rho_type == "perfect") {
 } else if (rho_type == "total") {
     out_fn += ".rho_total"
 }
+clado_str = ".clado_"
+for (s in clado_event_types) { clado_str += s }
+out_fn += clado_str
 
 print("Saving work using the prefix \"" + out_fn + "\"")
 
@@ -229,7 +232,7 @@ rate_categories := fnDiscretizeDistribution(rate_distribution, num_rate_categori
 
 for (i in 1:n_branches) {
     branch_rates[i] ~ dnMixture(rate_categories, rate_probs)
-    branch_rates[i].setValue( rate_categories[ floor(num_rate_categories) ] )
+    branch_rates[i].setValue( rate_categories[ floor(num_rate_categories/2) ] )
     moves[mvi++] = mvMixtureAllocation(branch_rates[i], weight=1., delta=step_size)
 }
 
@@ -327,10 +330,9 @@ Q_DEC_epoch := fnEpoch(Q=Q_DEC, times=abs(epoch_times), rates=rep(1, n_epochs))
 
 # build cladogenetic transition probabilities
 clado_event_types <- [ "s", "a" ]
-p_sympatry ~ dnUniform(0,1)
-p_allopatry := abs(1.0 - p_sympatry)
-moves[mvi++] = mvSlide(p_sympatry, delta=0.1, weight=2)
-clado_event_probs := simplex(p_sympatry, p_allopatry)
+n_clado_events <- clado_event_types.size()
+clado_event_probs ~ dnDirichlet( rep(1, n_clado_events) )
+moves[mvi++] = mvSimplexElementScale(clado_event_probs, alpha=10, weight=3)
 P_DEC := fnDECCladoProbs(eventProbs=clado_event_probs,
                          eventTypes=clado_event_types,
                          numCharacters=n_areas,
